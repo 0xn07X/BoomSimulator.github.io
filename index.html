@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Симулятор: Самолеты, Ядерка, Кракен и... Аластор!</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Arial', sans-serif; }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 12px 20px;
+            border-radius: 8px;
+            pointer-events: none;
+            z-index: 100;
+            border-left: 4px solid #ff4444;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        #score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #ffaa00;
+            text-shadow: 0 0 10px rgba(255,170,0,0.5);
+        }
+        #missiles-info {
+            margin-top: 6px;
+            font-size: 16px;
+            color: #66ddff;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 100;
+            box-shadow: 0 0 10px rgba(255,0,0,0.8);
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 0, 0, 0.8);
+        }
+        #crosshair::before { width: 2px; height: 30px; top: -5px; left: 9px; }
+        #crosshair::after { width: 30px; height: 2px; top: 9px; left: -5px; }
+        #nuke-btn-container {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 200;
+            text-align: center;
+        }
+        #nuke-btn {
+            background: radial-gradient(circle, #ff0000, #8b0000);
+            color: white;
+            border: 3px solid #ffaa00;
+            padding: 20px 40px;
+            font-size: 28px;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            letter-spacing: 3px;
+            box-shadow: 0 0 30px rgba(255,0,0,0.8);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            animation: pulse 1.5s infinite;
+        }
+        #nuke-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 50px rgba(255,0,0,1);
+            background: radial-gradient(circle, #ff4444, #b22222);
+        }
+        #nuke-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+            animation: none;
+            filter: grayscale(1);
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 30px rgba(255,0,0,0.8); }
+            50% { box-shadow: 0 0 60px rgba(255,255,0,0.9); }
+            100% { box-shadow: 0 0 30px rgba(255,0,0,0.8); }
+        }
+        #warning {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 80px;
+            font-weight: bold;
+            text-shadow: 0 0 30px red;
+            opacity: 0;
+            pointer-events: none;
+            z-index: 300;
+            transition: opacity 0.3s;
+            text-align: center;
+        }
+        #hint {
+            color: #ccc;
+            margin-top: 8px;
+            font-size: 14px;
+        }
+        .controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255,255,255,0.6);
+            background: rgba(0,0,0,0.5);
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 12px;
+            z-index: 100;
+            line-height: 1.6;
+        }
+        #flash-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: white; opacity: 0; pointer-events: none; z-index: 500;
+            transition: opacity 0.1s;
+        }
+        #missile-btn {
+            position: absolute;
+            bottom: 40px;
+            right: 40px;
+            background: radial-gradient(circle, #00ccff, #0055aa);
+            color: white;
+            border: 3px solid #66ddff;
+            padding: 15px 25px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            box-shadow: 0 0 20px rgba(0,200,255,0.7);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            z-index: 200;
+        }
+        #missile-btn:hover:not(:disabled) {
+            transform: scale(1.08);
+            box-shadow: 0 0 40px rgba(0,200,255,1);
+            background: radial-gradient(circle, #33ddff, #0066cc);
+        }
+        #missile-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            filter: grayscale(0.7);
+        }
+        #kraken-btn {
+            position: absolute;
+            bottom: 110px;
+            right: 40px;
+            background: radial-gradient(circle, #22cc88, #054433);
+            color: white;
+            border: 3px solid #66ffbb;
+            padding: 15px 25px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 30px;
+            cursor: pointer;
+            letter-spacing: 2px;
+            box-shadow: 0 0 20px rgba(0,255,150,0.7);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            z-index: 200;
+        }
+        #kraken-btn:hover:not(:disabled) {
+            transform: scale(1.08);
+            box-shadow: 0 0 40px rgba(0,255,150,1);
+            background: radial-gradient(circle, #44ffaa, #076644);
+        }
+        #kraken-btn:disabled {
+            opacity: 0.35;
+            cursor: not-allowed;
+            filter: grayscale(0.7);
+        }
+        #hand-cursor {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9999;
+            font-size: 60px;
+            opacity: 0;
+            transition: opacity 0.2s;
+            filter: drop-shadow(0 0 10px rgba(0,0,0,0.8));
+            transform-origin: top left;
+        }
+        /* === АЛАСТОР === */
+        #alastor-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, rgba(120, 0, 0, 0.6), rgba(0, 0, 0, 0.95));
+            opacity: 0;
+            pointer-events: none;
+            z-index: 400;
+            transition: opacity 0.6s ease;
+        }
+        #alastor-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #alastor-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.5);
+            opacity: 0;
+            pointer-events: none;
+            z-index: 450;
+            transition: opacity 0.6s ease, transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+            text-align: center;
+        }
+        #alastor-container.active {
+            opacity: 1;
+            transform: translate(-50%, -50%) scale(1);
+            pointer-events: auto;
+        }
+        #alastor-img {
+            width: 350px;
+            height: 350px;
+            border-radius: 50%;
+            border: 6px solid #cc0000;
+            box-shadow: 0 0 60px #ff0000, 0 0 120px rgba(255, 0, 0, 0.5), inset 0 0 60px rgba(0,0,0,0.8);
+            animation: alastorPulse 2s infinite;
+            display: block;
+            margin: 0 auto;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+        #alastor-img svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        @keyframes alastorPulse {
+            0%, 100% { box-shadow: 0 0 60px #ff0000, 0 0 120px rgba(255, 0, 0, 0.5); }
+            50% { box-shadow: 0 0 100px #ff0000, 0 0 180px rgba(255, 0, 0, 0.8); }
+        }
+        #alastor-speech {
+            margin-top: 30px;
+            font-size: 90px;
+            font-weight: 900;
+            color: #ff2222;
+            text-shadow: 
+                0 0 20px #ff0000,
+                0 0 40px #ff0000,
+                0 0 80px #aa0000,
+                4px 4px 0 #000;
+            font-family: 'Impact', 'Arial Black', sans-serif;
+            letter-spacing: 8px;
+            animation: speechGlow 1.5s infinite alternate;
+            white-space: nowrap;
+        }
+        @keyframes speechGlow {
+            from { text-shadow: 0 0 20px #ff0000, 0 0 40px #ff0000, 0 0 80px #aa0000, 4px 4px 0 #000; }
+            to { text-shadow: 0 0 40px #ff0000, 0 0 80px #ff0000, 0 0 150px #ff0000, 4px 4px 0 #000; }
+        }
+        #alastor-caption {
+            margin-top: 15px;
+            font-size: 20px;
+            color: #ffaa88;
+            letter-spacing: 4px;
+            text-shadow: 0 0 10px #ff4400;
+            font-style: italic;
+        }
+        #alastor-close-btn {
+            margin-top: 30px;
+            background: radial-gradient(circle, #cc0000, #440000);
+            color: white;
+            border: 3px solid #ff4444;
+            padding: 15px 40px;
+            font-size: 20px;
+            font-weight: bold;
+            border-radius: 40px;
+            cursor: pointer;
+            letter-spacing: 3px;
+            box-shadow: 0 0 30px rgba(255, 0, 0, 0.8);
+            transition: transform 0.2s, box-shadow 0.2s;
+            text-transform: uppercase;
+            animation: alastorBtnPulse 1.5s infinite;
+        }
+        #alastor-close-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 60px rgba(255, 0, 0, 1);
+            background: radial-gradient(circle, #ff2222, #660000);
+        }
+        @keyframes alastorBtnPulse {
+            0% { box-shadow: 0 0 30px rgba(255,0,0,0.8); }
+            50% { box-shadow: 0 0 60px rgba(255,50,50,1); }
+            100% { box-shadow: 0 0 30px rgba(255,0,0,0.8); }
+        }
+        /* Радиальные помехи на экране */
+        #alastor-noise {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(255, 0, 0, 0.03),
+                rgba(255, 0, 0, 0.03) 2px,
+                transparent 2px,
+                transparent 4px
+            );
+            pointer-events: none;
+            z-index: 401;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #alastor-overlay.active + #alastor-noise {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <div>✈️ СБИТО: <span id="score">0</span></div>
+        <div id="missiles-info">🚀 Ракеты: <span id="missile-count">3</span></div>
+        <div id="hint">ЛКМ — выстрел. Q — ракета. K — Кракен!</div>
+    </div>
+    <div id="crosshair"></div>
+    <div id="nuke-btn-container">
+        <button id="nuke-btn" disabled>ЯДЕРКА</button>
+    </div>
+    <button id="missile-btn">🚀 РАКЕТА (Q)</button>
+    <button id="kraken-btn">🐙 КРАКЕН (K)</button>
+    <div id="warning"></div>
+    <div id="flash-overlay"></div>
+    <div id="hand-cursor">👆</div>
+    <div class="controls">
+        🖱️ Мышь — прицел<br>
+        🖱️ ЛКМ — выстрел<br>
+        🚀 Q — пуск ракеты<br>
+        🐙 K — КРАКЕН!<br>
+        🔄 R — рестарт
+    </div>
+
+    <!-- === АЛАСТОР === -->
+    <div id="alastor-overlay"></div>
+    <div id="alastor-noise"></div>
+    <div id="alastor-container">
+        <div id="alastor-img">
+            <!-- SVG-портрет Аластора (Радио-Демон) -->
+            <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="#3a0000"/>
+                        <stop offset="100%" stop-color="#000000"/>
+                    </radialGradient>
+                    <radialGradient id="faceGrad" cx="50%" cy="40%" r="55%">
+                        <stop offset="0%" stop-color="#c9b8a0"/>
+                        <stop offset="100%" stop-color="#7a5c3e"/>
+                    </radialGradient>
+                    <radialGradient id="eyeGlow" cx="50%" cy="50%" r="50%">
+                        <stop offset="0%" stop-color="#ff0000"/>
+                        <stop offset="100%" stop-color="#880000"/>
+                    </radialGradient>
+                </defs>
+                <rect width="400" height="400" fill="url(#bgGrad)"/>
+                
+                <!-- Красный круг радиовещания сзади -->
+                <circle cx="200" cy="200" r="160" fill="none" stroke="#aa0000" stroke-width="3" opacity="0.6"/>
+                <circle cx="200" cy="200" r="140" fill="none" stroke="#cc0000" stroke-width="2" opacity="0.4"/>
+                <circle cx="200" cy="200" r="180" fill="none" stroke="#660000" stroke-width="2" opacity="0.5"/>
+                
+                <!-- Рога -->
+                <path d="M 90 110 Q 60 60 100 30 Q 120 60 130 100 Z" fill="#8b5a3c" stroke="#3a2519" stroke-width="2"/>
+                <path d="M 310 110 Q 340 60 300 30 Q 280 60 270 100 Z" fill="#8b5a3c" stroke="#3a2519" stroke-width="2"/>
+                <path d="M 95 105 Q 75 70 105 45" fill="none" stroke="#4a2c1a" stroke-width="3"/>
+                <path d="M 305 105 Q 325 70 295 45" fill="none" stroke="#4a2c1a" stroke-width="3"/>
+                
+                <!-- Волосы (оранжево-красные) -->
+                <path d="M 100 130 Q 90 90 120 80 Q 130 95 140 90 Q 150 75 170 80 Q 185 70 200 80 Q 215 70 230 80 Q 250 75 260 90 Q 270 95 280 80 Q 310 90 300 130 L 290 160 L 110 160 Z" fill="#cc3300"/>
+                <path d="M 105 125 Q 100 95 125 88" fill="none" stroke="#aa2200" stroke-width="4"/>
+                <path d="M 295 125 Q 300 95 275 88" fill="none" stroke="#aa2200" stroke-width="4"/>
+                
+                <!-- Оленьи уши (мохнатые) -->
+                <ellipse cx="85" cy="145" rx="22" ry="30" fill="#a0785a" transform="rotate(-25 85 145)"/>
+                <ellipse cx="85" cy="145" rx="12" ry="18" fill="#7a5c3e" transform="rotate(-25 85 145)"/>
+                <ellipse cx="315" cy="145" rx="22" ry="30" fill="#a0785a" transform="rotate(25 315 145)"/>
+                <ellipse cx="315" cy="145" rx="12" ry="18" fill="#7a5c3e" transform="rotate(25 315 145)"/>
+                
+                <!-- Лицо -->
+                <ellipse cx="200" cy="215" rx="95" ry="105" fill="url(#faceGrad)"/>
+                
+                <!-- Морда (вытянутая) -->
+                <ellipse cx="200" cy="265" rx="55" ry="50" fill="#b8a088"/>
+                <ellipse cx="200" cy="270" rx="45" ry="40" fill="#a08868"/>
+                
+                <!-- Нос -->
+                <ellipse cx="200" cy="252" rx="12" ry="8" fill="#3a2519"/>
+                
+                <!-- Рот с зубами (улыбка) -->
+                <path d="M 155 285 Q 200 320 245 285" fill="none" stroke="#2a1510" stroke-width="4"/>
+                <path d="M 160 285 L 165 298 L 172 285 L 178 298 L 185 285 L 192 298 L 200 285 L 208 298 L 215 285 L 222 298 L 228 285 L 235 298 L 240 285" fill="#ffffff" stroke="#2a1510" stroke-width="1.5"/>
+                
+                <!-- Глаза (светящиеся красные) -->
+                <ellipse cx="155" cy="195" rx="22" ry="16" fill="#1a0a0a" stroke="#000" stroke-width="2"/>
+                <ellipse cx="245" cy="195" rx="22" ry="16" fill="#1a0a0a" stroke="#000" stroke-width="2"/>
+                <ellipse cx="155" cy="195" rx="14" ry="11" fill="url(#eyeGlow)"/>
+                <ellipse cx="245" cy="195" rx="14" ry="11" fill="url(#eyeGlow)"/>
+                <ellipse cx="155" cy="195" rx="5" ry="7" fill="#000"/>
+                <ellipse cx="245" cy="195" rx="5" ry="7" fill="#000"/>
+                <ellipse cx="158" cy="192" rx="2" ry="2" fill="#ffffff"/>
+                <ellipse cx="248" cy="192" rx="2" ry="2" fill="#ffffff"/>
+                
+                <!-- Монокль (правый глаз) -->
+                <circle cx="245" cy="195" r="24" fill="none" stroke="#cc0000" stroke-width="3"/>
+                <line x1="265" y1="200" x2="320" y2="270" stroke="#cc0000" stroke-width="2"/>
+                
+                <!-- Микрофон-стойка перед лицом -->
+                <rect x="130" y="330" width="8" height="55" fill="#3a3a3a"/>
+                <rect x="262" y="330" width="8" height="55" fill="#3a3a3a"/>
+                <ellipse cx="134" cy="330" rx="18" ry="12" fill="#555" stroke="#222" stroke-width="2"/>
+                <ellipse cx="266" cy="330" rx="18" ry="12" fill="#555" stroke="#222" stroke-width="2"/>
+                <ellipse cx="134" cy="330" rx="10" ry="6" fill="#222"/>
+                <ellipse cx="266" cy="330" rx="10" ry="6" fill="#222"/>
+                <line x1="134" y1="342" x2="134" y2="380" stroke="#333" stroke-width="4"/>
+                <line x1="266" y1="342" x2="266" y2="380" stroke="#333" stroke-width="4"/>
+                
+                <!-- Радио-волны от микрофона -->
+                <path d="M 100 320 Q 90 310 100 300" fill="none" stroke="#ff4400" stroke-width="2" opacity="0.7"/>
+                <path d="M 85 330 Q 70 310 85 290" fill="none" stroke="#ff4400" stroke-width="2" opacity="0.5"/>
+                <path d="M 300 320 Q 310 310 300 300" fill="none" stroke="#ff4400" stroke-width="2" opacity="0.7"/>
+                <path d="M 315 330 Q 330 310 315 290" fill="none" stroke="#ff4400" stroke-width="2" opacity="0.5"/>
+                
+                <!-- Усы -->
+                <path d="M 175 255 Q 160 250 145 258" fill="none" stroke="#3a2519" stroke-width="2"/>
+                <path d="M 225 255 Q 240 250 255 258" fill="none" stroke="#3a2519" stroke-width="2"/>
+            </svg>
+        </div>
+        <div id="alastor-speech">ПРИВЕТ ЛАДА!</div>
+        <div id="alastor-caption">Я ДОКТОР ХАРЛОУ</div>
+        <button id="alastor-close-btn">Выгнать дебила</button>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.126.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.126.0/examples/jsm/"
+            }
+        }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // --- СЦЕНА ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1a);
+        scene.fog = new THREE.Fog(0x0a0a1a, 100, 300);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 20, 60);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        document.body.appendChild(renderer.domElement);
+
+        // --- СВЕТ ---
+        scene.add(new THREE.AmbientLight(0x404060));
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 1024;
+        dirLight.shadow.mapSize.height = 1024;
+        const d = 100;
+        dirLight.shadow.camera.left = -d;
+        dirLight.shadow.camera.right = d;
+        dirLight.shadow.camera.top = d;
+        dirLight.shadow.camera.bottom = -d;
+        dirLight.shadow.camera.near = 1;
+        dirLight.shadow.camera.far = 200;
+        scene.add(dirLight);
+
+        const fillLight = new THREE.PointLight(0x4466ff, 0.5);
+        fillLight.position.set(-20, 30, 20);
+        scene.add(fillLight);
+
+        // --- ЗЕМЛЯ ---
+        const groundGeometry = new THREE.CircleGeometry(200, 64);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x2a4a2a, roughness: 0.8, metalness: 0.1
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -5;
+        ground.receiveShadow = true;
+        scene.add(ground);
+
+        const gridHelper = new THREE.GridHelper(400, 40, 0x88aaff, 0x335588);
+        gridHelper.position.y = -4.9;
+        scene.add(gridHelper);
+
+        // --- ЗВЕЗДЫ ---
+        const starsGeometry = new THREE.BufferGeometry();
+        const starsCount = 2000;
+        const starPositions = new Float32Array(starsCount * 3);
+        for (let i = 0; i < starsCount * 3; i += 3) {
+            starPositions[i] = (Math.random() - 0.5) * 600;
+            starPositions[i+1] = (Math.random() - 0.5) * 300 + 50;
+            starPositions[i+2] = (Math.random() - 0.5) * 600;
+        }
+        starsGeometry.setAttribute('position', new THREE.BufferAttribute(starPositions, 3));
+        const stars = new THREE.Points(starsGeometry, new THREE.PointsMaterial({ color: 0xffffff, size: 0.5 }));
+        scene.add(stars);
+
+        // --- САМОЛЕТЫ ---
+        const planes = [];
+        const planeCount = 8;
+        let score = 0;
+        let nukeReady = false;
+        let nukeActive = false;
+        let alastorShown = false; // Показан ли Аластор
+        let alastorActive = false; // Активен ли сейчас оверлей Аластора
+
+        function createPlane() {
+            const group = new THREE.Group();
+
+            const bodyGeo = new THREE.ConeGeometry(1.2, 5, 8);
+            bodyGeo.rotateX(Math.PI / 2);
+            const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ color: 0xcccccc, emissive: 0x333333 }));
+            body.castShadow = true;
+            group.add(body);
+
+            const wingGeo = new THREE.BoxGeometry(8, 0.3, 1.5);
+            const wings = new THREE.Mesh(wingGeo, new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
+            wings.castShadow = true;
+            group.add(wings);
+
+            const tailGeo = new THREE.BoxGeometry(0.5, 1.5, 1.5);
+            const tail = new THREE.Mesh(tailGeo, new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
+            tail.castShadow = true;
+            tail.position.set(0, 1.2, 1.8);
+            group.add(tail);
+
+            const noseGeo = new THREE.SphereGeometry(0.8, 8, 8);
+            const nose = new THREE.Mesh(noseGeo, new THREE.MeshStandardMaterial({ color: 0xff3333, emissive: 0x440000 }));
+            nose.position.z = -2.5;
+            group.add(nose);
+
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 80 + Math.random() * 80;
+            const height = 10 + Math.random() * 50;
+            group.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
+
+            group.userData = {
+                angle, radius, height,
+                speed: 0.2 + Math.random() * 0.3,
+                alive: true
+            };
+
+            group.rotation.y = -angle;
+            scene.add(group);
+            return group;
+        }
+
+        for (let i = 0; i < planeCount; i++) planes.push(createPlane());
+
+        // --- ЭФФЕКТЫ ВЗРЫВА ---
+        const explosionEffects = [];
+
+        function createPlaneExplosion(position, scale = 1, colorOverride = null) {
+            const flashColor = colorOverride || 0xffffaa;
+            const fireColor = colorOverride ? 0x66ffaa : 0xff6600;
+            const fireEmissive = colorOverride ? 0x22aa55 : 0xff3300;
+
+            const flash = new THREE.Mesh(
+                new THREE.SphereGeometry(2 * scale, 12, 12),
+                new THREE.MeshBasicMaterial({ color: flashColor, transparent: true, opacity: 1 })
+            );
+            flash.position.copy(position);
+            scene.add(flash);
+            explosionEffects.push({ mesh: flash, life: 0.4, maxLife: 0.4, type: 'flash', expand: 8.0 });
+
+            const fire = new THREE.Mesh(
+                new THREE.SphereGeometry(3 * scale, 12, 12),
+                new THREE.MeshStandardMaterial({ color: fireColor, emissive: fireEmissive, transparent: true, opacity: 0.95 })
+            );
+            fire.position.copy(position);
+            scene.add(fire);
+            explosionEffects.push({ mesh: fire, life: 0.9, maxLife: 0.9, type: 'fire', expand: 5.0 });
+
+            for (let i = 0; i < 3; i++) {
+                const subFire = new THREE.Mesh(
+                    new THREE.SphereGeometry(1.5 * scale, 8, 8),
+                    new THREE.MeshStandardMaterial({ 
+                        color: colorOverride ? 0x44dd88 : 0xffaa00, 
+                        emissive: colorOverride ? 0x116644 : 0xff4400, 
+                        transparent: true, opacity: 0.9 
+                    })
+                );
+                subFire.position.copy(position);
+                scene.add(subFire);
+                const vel = new THREE.Vector3(
+                    (Math.random() - 0.5) * 15,
+                    (Math.random() - 0.5) * 15,
+                    (Math.random() - 0.5) * 15
+                );
+                explosionEffects.push({ mesh: subFire, life: 0.7, maxLife: 0.7, type: 'subfire', expand: 1.5, velocity: vel });
+            }
+
+            for (let i = 0; i < 8; i++) {
+                const smoke = new THREE.Mesh(
+                    new THREE.SphereGeometry(1.2 * scale, 6, 6),
+                    new THREE.MeshStandardMaterial({ color: 0x555555, transparent: true, opacity: 0.7 })
+                );
+                const offset = new THREE.Vector3(
+                    (Math.random() - 0.5) * 4,
+                    (Math.random() - 0.5) * 4,
+                    (Math.random() - 0.5) * 4
+                );
+                smoke.position.copy(position).add(offset);
+                scene.add(smoke);
+                const vel = offset.clone().normalize().multiplyScalar(1.5 + Math.random() * 2);
+                explosionEffects.push({ 
+                    mesh: smoke, life: 1.5 + Math.random(), maxLife: 1.5 + Math.random(), 
+                    type: 'smoke', expand: 2.5, velocity: vel 
+                });
+            }
+
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(0.5, 0.3, 8, 32),
+                new THREE.MeshStandardMaterial({ 
+                    color: colorOverride ? 0x66ffaa : 0xffaa00, 
+                    emissive: colorOverride ? 0x22aa55 : 0xff6600, 
+                    transparent: true, opacity: 0.9 
+                })
+            );
+            ring.position.copy(position);
+            ring.rotation.x = Math.random() * Math.PI;
+            ring.rotation.y = Math.random() * Math.PI;
+            scene.add(ring);
+            explosionEffects.push({ mesh: ring, life: 0.6, maxLife: 0.6, type: 'ring', expand: 12.0 });
+
+            for (let i = 0; i < 12; i++) {
+                const debris = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.3, 0.3, 0.3),
+                    new THREE.MeshStandardMaterial({ 
+                        color: colorOverride ? 0x88ddaa : 0xaa8866, 
+                        emissive: colorOverride ? 0x226644 : 0x442200 
+                    })
+                );
+                debris.position.copy(position);
+                scene.add(debris);
+                const vel = new THREE.Vector3(
+                    (Math.random() - 0.5) * 40,
+                    (Math.random() - 0.2) * 30,
+                    (Math.random() - 0.5) * 40
+                );
+                explosionEffects.push({
+                    mesh: debris, life: 1.2, maxLife: 1.2, type: 'debris',
+                    expand: 0, velocity: vel, gravity: true,
+                    rotationSpeed: new THREE.Vector3(
+                        (Math.random() - 0.5) * 20,
+                        (Math.random() - 0.5) * 20,
+                        (Math.random() - 0.5) * 20
+                    )
+                });
+            }
+
+            const pointLight = new THREE.PointLight(colorOverride ? 0x66ffaa : 0xff8800, 5, 40 * scale);
+            pointLight.position.copy(position);
+            scene.add(pointLight);
+            explosionEffects.push({ mesh: pointLight, life: 0.4, maxLife: 0.4, type: 'light' });
+        }
+
+        // --- ЯДЕРКА ---
+        function createNukeExplosion() {
+            const center = new THREE.Vector3(0, 20, 0);
+
+            const flash = new THREE.Mesh(
+                new THREE.SphereGeometry(5, 16, 16),
+                new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1 })
+            );
+            flash.position.copy(center);
+            scene.add(flash);
+            explosionEffects.push({ mesh: flash, life: 1.0, maxLife: 1.0, type: 'flash', expand: 4.0 });
+
+            const fire = new THREE.Mesh(
+                new THREE.SphereGeometry(8, 16, 16),
+                new THREE.MeshStandardMaterial({ color: 0xff6600, emissive: 0xff3300, transparent: true, opacity: 0.9 })
+            );
+            fire.position.copy(center);
+            scene.add(fire);
+            explosionEffects.push({ mesh: fire, life: 1.8, maxLife: 1.8, type: 'fire', expand: 6.0 });
+
+            for (let i = 0; i < 6; i++) {
+                const subFire = new THREE.Mesh(
+                    new THREE.SphereGeometry(3, 12, 12),
+                    new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff5500, transparent: true, opacity: 0.85 })
+                );
+                subFire.position.copy(center);
+                scene.add(subFire);
+                const vel = new THREE.Vector3(
+                    (Math.random() - 0.5) * 30,
+                    (Math.random() - 0.3) * 25,
+                    (Math.random() - 0.5) * 30
+                );
+                explosionEffects.push({ mesh: subFire, life: 1.5, maxLife: 1.5, type: 'subfire', expand: 2.5, velocity: vel });
+            }
+
+            const ring = new THREE.Mesh(
+                new THREE.TorusGeometry(1, 0.5, 16, 64),
+                new THREE.MeshStandardMaterial({ color: 0xffaa00, emissive: 0xff4400, transparent: true, opacity: 0.8 })
+            );
+            ring.position.copy(center);
+            ring.rotation.x = Math.PI / 2;
+            scene.add(ring);
+            explosionEffects.push({ mesh: ring, life: 1.5, maxLife: 1.5, type: 'ring', expand: 30.0 });
+
+            const ring2 = new THREE.Mesh(
+                new THREE.TorusGeometry(1, 0.3, 16, 64),
+                new THREE.MeshStandardMaterial({ color: 0xff4400, emissive: 0xff2200, transparent: true, opacity: 0.7 })
+            );
+            ring2.position.copy(center);
+            ring2.rotation.x = Math.PI / 2;
+            scene.add(ring2);
+            explosionEffects.push({ mesh: ring2, life: 2.0, maxLife: 2.0, type: 'ring', expand: 20.0 });
+
+            for (let i = 0; i < 40; i++) {
+                const smoke = new THREE.Mesh(
+                    new THREE.SphereGeometry(1.5, 6, 6),
+                    new THREE.MeshStandardMaterial({ color: 0x555555, transparent: true, opacity: 0.7 })
+                );
+                const offset = new THREE.Vector3(
+                    (Math.random() - 0.5) * 30,
+                    (Math.random() - 0.2) * 20 + 10,
+                    (Math.random() - 0.5) * 30
+                );
+                smoke.position.copy(center).add(offset);
+                scene.add(smoke);
+                const vel = offset.clone().normalize().multiplyScalar(1 + Math.random() * 2);
+                explosionEffects.push({ 
+                    mesh: smoke, life: 2.5 + Math.random(), maxLife: 2.5 + Math.random(), 
+                    type: 'smoke', expand: 3.0, velocity: vel 
+                });
+            }
+
+            for (let i = 0; i < 20; i++) {
+                const debris = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.5, 0.5, 0.5),
+                    new THREE.MeshStandardMaterial({ color: 0x666666, emissive: 0x331100 })
+                );
+                debris.position.copy(center);
+                scene.add(debris);
+                const vel = new THREE.Vector3(
+                    (Math.random() - 0.5) * 60,
+                    (Math.random() - 0.3) * 50,
+                    (Math.random() - 0.5) * 60
+                );
+                explosionEffects.push({
+                    mesh: debris, life: 2.0, maxLife: 2.0, type: 'debris',
+                    expand: 0, velocity: vel, gravity: true,
+                    rotationSpeed: new THREE.Vector3(
+                        (Math.random() - 0.5) * 15,
+                        (Math.random() - 0.5) * 15,
+                        (Math.random() - 0.5) * 15
+                    )
+                });
+            }
+
+            const pointLight = new THREE.PointLight(0xffffff, 20, 200);
+            pointLight.position.copy(center);
+            scene.add(pointLight);
+            explosionEffects.push({ mesh: pointLight, life: 0.8, maxLife: 0.8, type: 'light' });
+
+            planes.forEach(plane => {
+                if (plane.userData.alive) {
+                    plane.userData.alive = false;
+                    plane.visible = false;
+                }
+            });
+
+            setTimeout(() => {
+                planes.forEach(plane => {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = 80 + Math.random() * 80;
+                    const height = 10 + Math.random() * 50;
+                    plane.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
+                    plane.userData.angle = angle;
+                    plane.userData.radius = radius;
+                    plane.userData.height = height;
+                    plane.userData.alive = true;
+                    plane.visible = true;
+                });
+                nukeReady = false;
+                document.getElementById('nuke-btn').disabled = true;
+                updateScoreDisplay();
+            }, 4000);
+        }
+
+        // ==========================================
+        // === АЛАСТОР ===
+        // ==========================================
+        function showAlastor() {
+            if (alastorActive) return;
+            alastorActive = true;
+
+            const overlay = document.getElementById('alastor-overlay');
+            const container = document.getElementById('alastor-container');
+
+            overlay.classList.add('active');
+            container.classList.add('active');
+
+            // Тряска камеры
+            let shakeTime = 0.8;
+            const originalCamPos = camera.position.clone();
+            const shakeInterval = setInterval(() => {
+                if (shakeTime <= 0) {
+                    clearInterval(shakeInterval);
+                    camera.position.copy(originalCamPos);
+                    return;
+                }
+                camera.position.x = originalCamPos.x + (Math.random() - 0.5) * 1.5;
+                camera.position.y = originalCamPos.y + (Math.random() - 0.5) * 1.5;
+                camera.position.z = originalCamPos.z + (Math.random() - 0.5) * 1.5;
+                shakeTime -= 0.05;
+            }, 30);
+        }
+
+        function hideAlastor() {
+            if (!alastorActive) return;
+
+            const overlay = document.getElementById('alastor-overlay');
+            const container = document.getElementById('alastor-container');
+
+            overlay.classList.remove('active');
+            container.classList.remove('active');
+
+            setTimeout(() => {
+                alastorActive = false;
+            }, 600);
+        }
+
+        document.getElementById('alastor-close-btn').addEventListener('click', () => {
+            hideAlastor();
+        });
+
+        // Закрытие Аластора по клавише Escape
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && alastorActive) {
+                hideAlastor();
+            }
+        });
+
+        // ==========================================
+        // === САМОНАВОДЯЩИЕСЯ РАКЕТЫ ===
+        // ==========================================
+        const missiles = [];
+        let missileAmmo = 3;
+        const MISSILE_MAX_AMMO = 3;
+        const MISSILE_SPEED = 65;
+        const MISSILE_TURN_RATE = 3.5;
+        const MISSILE_LIFETIME = 8;
+        let missileReloadTimer = 0;
+        const MISSILE_RELOAD_TIME = 4;
+
+        function createMissileMesh() {
+            const group = new THREE.Group();
+
+            const bodyGeo = new THREE.CylinderGeometry(0.25, 0.25, 2.2, 8);
+            bodyGeo.rotateX(Math.PI / 2);
+            const body = new THREE.Mesh(bodyGeo, new THREE.MeshStandardMaterial({ 
+                color: 0xdddddd, emissive: 0x222222, metalness: 0.6, roughness: 0.3 
+            }));
+            body.castShadow = true;
+            group.add(body);
+
+            const noseGeo = new THREE.ConeGeometry(0.3, 0.9, 8);
+            noseGeo.rotateX(-Math.PI / 2);
+            const nose = new THREE.Mesh(noseGeo, new THREE.MeshStandardMaterial({ 
+                color: 0xff2222, emissive: 0x880000 
+            }));
+            nose.position.z = -1.55;
+            group.add(nose);
+
+            for (let i = 0; i < 4; i++) {
+                const finGeo = new THREE.BoxGeometry(0.8, 0.08, 0.5);
+                const fin = new THREE.Mesh(finGeo, new THREE.MeshStandardMaterial({ color: 0xaaaaaa }));
+                fin.position.z = 0.7;
+                fin.rotation.z = (i * Math.PI) / 2;
+                if (i % 2 === 1) fin.rotation.z += Math.PI / 4;
+                group.add(fin);
+            }
+
+            const engineGeo = new THREE.CylinderGeometry(0.28, 0.28, 0.4, 8);
+            engineGeo.rotateX(Math.PI / 2);
+            const engine = new THREE.Mesh(engineGeo, new THREE.MeshStandardMaterial({ 
+                color: 0x444444, emissive: 0xff6600, emissiveIntensity: 1.5 
+            }));
+            engine.position.z = 1.2;
+            group.add(engine);
+
+            const flameGeo = new THREE.ConeGeometry(0.3, 1.2, 8);
+            flameGeo.rotateX(Math.PI / 2);
+            const flame = new THREE.Mesh(flameGeo, new THREE.MeshBasicMaterial({ 
+                color: 0xffaa00, transparent: true, opacity: 0.9 
+            }));
+            flame.position.z = 1.9;
+            group.add(flame);
+            group.userData.flame = flame;
+
+            const engineLight = new THREE.PointLight(0xff8800, 3, 15);
+            engineLight.position.z = 1.5;
+            group.add(engineLight);
+
+            return group;
+        }
+
+        function launchMissile() {
+            if (missileAmmo <= 0 || nukeActive || krakenActive || alastorActive) return;
+
+            const livePlanes = planes.filter(p => p.userData.alive && p.visible);
+            if (livePlanes.length === 0) return;
+
+            const target = livePlanes[Math.floor(Math.random() * livePlanes.length)];
+
+            const missileMesh = createMissileMesh();
+
+            const startPos = camera.position.clone();
+            startPos.y -= 3;
+            const camDir = new THREE.Vector3();
+            camera.getWorldDirection(camDir);
+            startPos.add(camDir.clone().multiplyScalar(5));
+
+            missileMesh.position.copy(startPos);
+
+            const initialDir = camDir.clone().normalize();
+            
+            scene.add(missileMesh);
+
+            missiles.push({
+                mesh: missileMesh,
+                target: target,
+                velocity: initialDir.clone().multiplyScalar(MISSILE_SPEED * 0.5),
+                life: MISSILE_LIFETIME,
+                alive: true,
+                trailTimer: 0
+            });
+
+            missileAmmo--;
+            updateMissileDisplay();
+
+            const launchFlash = new THREE.PointLight(0xffaa00, 8, 25);
+            launchFlash.position.copy(startPos);
+            scene.add(launchFlash);
+            explosionEffects.push({ mesh: launchFlash, life: 0.3, maxLife: 0.3, type: 'light' });
+        }
+
+        function spawnMissileTrail(pos) {
+            const trail = new THREE.Mesh(
+                new THREE.SphereGeometry(0.25 + Math.random() * 0.15, 5, 5),
+                new THREE.MeshBasicMaterial({ 
+                    color: Math.random() > 0.5 ? 0xffaa00 : 0x888888, 
+                    transparent: true, opacity: 0.85 
+                })
+            );
+            trail.position.copy(pos);
+            scene.add(trail);
+            explosionEffects.push({
+                mesh: trail, life: 0.6 + Math.random() * 0.3,
+                maxLife: 0.9, type: 'smoke', expand: 3.0
+            });
+        }
+
+        function missileExplode(pos) {
+            createPlaneExplosion(pos, 0.7);
+        }
+
+        function updateMissiles(delta) {
+            for (let i = missiles.length - 1; i >= 0; i--) {
+                const m = missiles[i];
+                if (!m.alive) {
+                    scene.remove(m.mesh);
+                    missiles.splice(i, 1);
+                    continue;
+                }
+
+                m.life -= delta;
+                if (m.life <= 0) {
+                    missileExplode(m.mesh.position.clone());
+                    m.alive = false;
+                    scene.remove(m.mesh);
+                    missiles.splice(i, 1);
+                    continue;
+                }
+
+                if (!m.target.userData.alive || !m.target.visible) {
+                    const livePlanes = planes.filter(p => p.userData.alive && p.visible);
+                    if (livePlanes.length > 0) {
+                        m.target = livePlanes[Math.floor(Math.random() * livePlanes.length)];
+                    } else {
+                        missileExplode(m.mesh.position.clone());
+                        m.alive = false;
+                        scene.remove(m.mesh);
+                        missiles.splice(i, 1);
+                        continue;
+                    }
+                }
+
+                const targetPos = m.target.position.clone();
+                const toTarget = targetPos.sub(m.mesh.position);
+                const desiredDir = toTarget.normalize();
+
+                const currentDir = m.velocity.clone().normalize();
+
+                const dot = Math.max(-1, Math.min(1, currentDir.dot(desiredDir)));
+                const angle = Math.acos(dot);
+
+                if (angle > 0.001) {
+                    const axis = new THREE.Vector3().crossVectors(currentDir, desiredDir);
+                    if (axis.lengthSq() > 0.0001) {
+                        axis.normalize();
+                        const maxTurn = MISSILE_TURN_RATE * delta;
+                        const turnAngle = Math.min(angle, maxTurn);
+                        currentDir.applyAxisAngle(axis, turnAngle);
+                    }
+                }
+
+                const currentSpeed = m.velocity.length();
+                const newSpeed = Math.min(MISSILE_SPEED, currentSpeed + 80 * delta);
+                m.velocity.copy(currentDir.multiplyScalar(newSpeed));
+
+                m.mesh.position.add(m.velocity.clone().multiplyScalar(delta));
+
+                const lookTarget = m.mesh.position.clone().add(m.velocity.clone().normalize());
+                m.mesh.lookAt(lookTarget);
+
+                if (m.mesh.userData.flame) {
+                    const flicker = 0.7 + Math.random() * 0.6;
+                    m.mesh.userData.flame.scale.set(flicker, flicker, flicker + Math.random() * 0.5);
+                    m.mesh.userData.flame.material.opacity = 0.7 + Math.random() * 0.3;
+                }
+
+                m.trailTimer -= delta;
+                if (m.trailTimer <= 0) {
+                    spawnMissileTrail(m.mesh.position.clone());
+                    m.trailTimer = 0.025;
+                }
+
+                const hitDistance = m.mesh.position.distanceTo(m.target.position);
+                if (hitDistance < 4) {
+                    const explosionPos = m.target.position.clone();
+                    
+                    if (m.target.userData.alive) {
+                        m.target.userData.alive = false;
+                        m.target.visible = false;
+
+                        createPlaneExplosion(explosionPos, 1.3);
+
+                        score++;
+                        updateScoreDisplay();
+                        checkAlastorTrigger();
+
+                        if (score >= 8 && !nukeReady) {
+                            nukeReady = true;
+                            document.getElementById('nuke-btn').disabled = false;
+                        }
+
+                        const targetRef = m.target;
+                        setTimeout(() => {
+                            if (!nukeActive && !krakenActive) {
+                                const angle = Math.random() * Math.PI * 2;
+                                const radius = 80 + Math.random() * 80;
+                                const height = 10 + Math.random() * 50;
+                                targetRef.position.set(
+                                    Math.cos(angle) * radius, height, Math.sin(angle) * radius
+                                );
+                                targetRef.userData.angle = angle;
+                                targetRef.userData.radius = radius;
+                                targetRef.userData.height = height;
+                                targetRef.userData.alive = true;
+                                targetRef.visible = true;
+                            }
+                        }, 1500);
+                    }
+
+                    m.alive = false;
+                    scene.remove(m.mesh);
+                    missiles.splice(i, 1);
+                    continue;
+                }
+
+                if (m.mesh.position.length() > 350) {
+                    missileExplode(m.mesh.position.clone());
+                    m.alive = false;
+                    scene.remove(m.mesh);
+                    missiles.splice(i, 1);
+                }
+            }
+
+            if (missileAmmo < MISSILE_MAX_AMMO) {
+                missileReloadTimer -= delta;
+                if (missileReloadTimer <= 0) {
+                    missileAmmo++;
+                    updateMissileDisplay();
+                    missileReloadTimer = MISSILE_RELOAD_TIME;
+                }
+            }
+        }
+
+        function updateMissileDisplay() {
+            document.getElementById('missile-count').textContent = missileAmmo;
+            const btn = document.getElementById('missile-btn');
+            btn.textContent = `🚀 РАКЕТА (Q) [${missileAmmo}]`;
+            btn.disabled = missileAmmo <= 0 || nukeActive || krakenActive || alastorActive;
+        }
+
+        // ==========================================
+        // === КРАКЕН ===
+        // ==========================================
+        let krakenActive = false;
+        const tentacles = [];
+        const krakenCooldown = 15;
+        let krakenCooldownTimer = 0;
+        let krakenReady = true;
+
+        function createTentacle(startPos, targetPlane, delay) {
+            const group = new THREE.Group();
+            
+            const segments = 12;
+            const segmentLength = 3;
+            const tentacleMat = new THREE.MeshStandardMaterial({ 
+                color: 0x1a6644, 
+                emissive: 0x0a3322,
+                roughness: 0.5,
+                metalness: 0.2
+            });
+            
+            const segmentMeshes = [];
+            for (let i = 0; i < segments; i++) {
+                const radius = 1.2 * (1 - i / segments * 0.7);
+                const segGeo = new THREE.SphereGeometry(radius, 10, 10);
+                const seg = new THREE.Mesh(segGeo, tentacleMat.clone());
+                seg.castShadow = true;
+                seg.position.y = i * segmentLength * 0.5;
+                group.add(seg);
+                segmentMeshes.push(seg);
+            }
+            
+            for (let i = 2; i < segments; i += 2) {
+                const suckerGeo = new THREE.SphereGeometry(0.35, 6, 6);
+                const suckerMat = new THREE.MeshStandardMaterial({ 
+                    color: 0xff88aa, emissive: 0x882244 
+                });
+                const sucker = new THREE.Mesh(suckerGeo, suckerMat);
+                sucker.position.set(0.8, i * segmentLength * 0.5, 0);
+                group.add(sucker);
+            }
+            
+            const eyeGeo = new THREE.SphereGeometry(0.5, 8, 8);
+            const eyeMat = new THREE.MeshStandardMaterial({ color: 0xffff00, emissive: 0xffaa00 });
+            const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye1.position.set(0.5, (segments-1) * segmentLength * 0.5, 0.5);
+            const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
+            eye2.position.set(-0.5, (segments-1) * segmentLength * 0.5, 0.5);
+            const pupilGeo = new THREE.SphereGeometry(0.25, 6, 6);
+            const pupilMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const pupil1 = new THREE.Mesh(pupilGeo, pupilMat);
+            pupil1.position.set(0.5, (segments-1) * segmentLength * 0.5, 0.95);
+            const pupil2 = new THREE.Mesh(pupilGeo, pupilMat);
+            pupil2.position.set(-0.5, (segments-1) * segmentLength * 0.5, 0.95);
+            group.add(eye1); group.add(eye2);
+            group.add(pupil1); group.add(pupil2);
+            
+            group.position.copy(startPos);
+            group.scale.set(0.01, 0.01, 0.01);
+            group.visible = false;
+            
+            scene.add(group);
+            
+            return {
+                group: group,
+                segments: segmentMeshes,
+                startPos: startPos.clone(),
+                targetPlane: targetPlane,
+                delay: delay,
+                elapsed: 0,
+                phase: 0,
+                capturedPos: new THREE.Vector3(),
+                capturedPlane: null,
+                segmentLength: segmentLength
+            };
+        }
+
+        function activateKraken() {
+            if (krakenActive || !krakenReady || nukeActive || alastorActive) return;
+            
+            krakenActive = true;
+            krakenReady = false;
+            document.getElementById('kraken-btn').disabled = true;
+            document.getElementById('missile-btn').disabled = true;
+            document.getElementById('nuke-btn').disabled = true;
+            
+            const hand = document.getElementById('hand-cursor');
+            const btn = document.getElementById('kraken-btn');
+            const rect = btn.getBoundingClientRect();
+            
+            hand.style.left = (rect.left + rect.width / 2 - 20) + 'px';
+            hand.style.top = (rect.top + rect.height / 2 - 30) + 'px';
+            hand.style.opacity = '1';
+            hand.style.transform = 'scale(1.5) translateY(-20px)';
+            
+            setTimeout(() => {
+                hand.style.transform = 'scale(1.3) translateY(0px)';
+            }, 200);
+            setTimeout(() => {
+                hand.style.transform = 'scale(1.5) translateY(-20px)';
+            }, 400);
+            setTimeout(() => {
+                hand.style.opacity = '0';
+            }, 800);
+            
+            setTimeout(() => {
+                startKrakenAttack();
+            }, 600);
+        }
+
+        function startKrakenAttack() {
+            const livePlanes = planes.filter(p => p.userData.alive && p.visible);
+            
+            livePlanes.forEach((plane, idx) => {
+                const groundPos = new THREE.Vector3(
+                    plane.position.x + (Math.random() - 0.5) * 30,
+                    -5,
+                    plane.position.z + (Math.random() - 0.5) * 30
+                );
+                
+                const tentacle = createTentacle(groundPos, plane, idx * 0.15);
+                tentacles.push(tentacle);
+            });
+            
+            const warningDiv = document.getElementById('warning');
+            warningDiv.textContent = '🐙 КРАКЕН ПРОБУДИЛСЯ! 🐙';
+            warningDiv.style.color = '#66ffaa';
+            warningDiv.style.textShadow = '0 0 30px #00ff88, 0 0 80px #22cc88';
+            warningDiv.style.fontSize = '70px';
+            warningDiv.style.opacity = '1';
+            
+            setTimeout(() => {
+                warningDiv.style.opacity = '0';
+            }, 2500);
+        }
+
+        function updateTentacles(delta) {
+            for (let i = tentacles.length - 1; i >= 0; i--) {
+                const t = tentacles[i];
+                t.elapsed += delta;
+                
+                if (t.elapsed < t.delay) continue;
+                
+                const localTime = t.elapsed - t.delay;
+                
+                if (t.phase === 0) {
+                    if (!t.group.visible) {
+                        t.group.visible = true;
+                    }
+                    
+                    const growProgress = Math.min(1, localTime / 1.2);
+                    const scaleY = growProgress;
+                    const scaleXZ = Math.min(1, growProgress * 2);
+                    t.group.scale.set(scaleXZ, scaleY, scaleXZ);
+                    
+                    if (t.targetPlane.userData.alive) {
+                        const targetPos = t.targetPlane.position.clone();
+                        const toTarget = targetPos.clone().sub(t.group.position);
+                        toTarget.y = Math.abs(toTarget.y);
+                        
+                        const up = new THREE.Vector3(0, 1, 0);
+                        const quat = new THREE.Quaternion().setFromUnitVectors(up, toTarget.clone().normalize());
+                        t.group.quaternion.copy(quat);
+                        
+                        const targetDistance = toTarget.length();
+                        const tentacleLength = (t.segments.length - 1) * t.segmentLength * 0.5;
+                        const stretch = targetDistance / tentacleLength;
+                        t.group.scale.y = growProgress * stretch;
+                    }
+                    
+                    if (localTime >= 1.2) {
+                        t.phase = 1;
+                    }
+                }
+                else if (t.phase === 1) {
+                    if (t.targetPlane.userData.alive && t.targetPlane.visible) {
+                        const targetPos = t.targetPlane.position.clone();
+                        const toTarget = targetPos.clone().sub(t.group.position);
+                        toTarget.y = Math.abs(toTarget.y);
+                        
+                        const up = new THREE.Vector3(0, 1, 0);
+                        const quat = new THREE.Quaternion().setFromUnitVectors(up, toTarget.clone().normalize());
+                        t.group.quaternion.copy(quat);
+                        
+                        const targetDistance = toTarget.length();
+                        const tentacleLength = (t.segments.length - 1) * t.segmentLength * 0.5;
+                        const stretch = targetDistance / tentacleLength;
+                        t.group.scale.y = stretch;
+                        
+                        if (localTime > 1.4) {
+                            t.capturedPos.copy(targetPos);
+                            t.capturedPlane = t.targetPlane;
+                        }
+                    }
+                    
+                    if (localTime >= 1.6) {
+                        t.phase = 2;
+                    }
+                }
+                else if (t.phase === 2) {
+                    if (t.capturedPlane && t.capturedPlane.userData.alive) {
+                        const squeezeProgress = Math.min(1, (localTime - 1.6) / 0.8);
+                        
+                        const shakeX = (Math.random() - 0.5) * 0.5 * (1 - squeezeProgress);
+                        const shakeZ = (Math.random() - 0.5) * 0.5 * (1 - squeezeProgress);
+                        
+                        const targetPos = t.capturedPlane.position.clone();
+                        targetPos.x += shakeX;
+                        targetPos.z += shakeZ;
+                        
+                        const toTarget = targetPos.clone().sub(t.group.position);
+                        toTarget.y = Math.abs(toTarget.y);
+                        
+                        const up = new THREE.Vector3(0, 1, 0);
+                        const quat = new THREE.Quaternion().setFromUnitVectors(up, toTarget.clone().normalize());
+                        t.group.quaternion.copy(quat);
+                        
+                        const targetDistance = toTarget.length();
+                        const tentacleLength = (t.segments.length - 1) * t.segmentLength * 0.5;
+                        const stretch = targetDistance / tentacleLength;
+                        t.group.scale.y = stretch;
+                        
+                        const squeezeScale = 1 - squeezeProgress * 0.95;
+                        t.capturedPlane.scale.set(squeezeScale, squeezeScale, squeezeScale);
+                        
+                        t.capturedPlane.position.x = t.capturedPos.x + shakeX;
+                        t.capturedPlane.position.z = t.capturedPos.z + shakeZ;
+                        t.capturedPlane.position.y = t.capturedPos.y - squeezeProgress * 5;
+                    }
+                    
+                    if (localTime >= 2.4) {
+                        t.phase = 3;
+                        if (t.capturedPlane && t.capturedPlane.userData.alive) {
+                            const explosionPos = t.capturedPlane.position.clone();
+                            t.capturedPlane.userData.alive = false;
+                            t.capturedPlane.visible = false;
+                            
+                            createPlaneExplosion(explosionPos, 1.5, 0x66ffaa);
+                            
+                            score++;
+                            updateScoreDisplay();
+                            checkAlastorTrigger();
+                            
+                            if (score >= 8 && !nukeReady) {
+                                nukeReady = true;
+                                document.getElementById('nuke-btn').disabled = false;
+                            }
+                            
+                            const targetRef = t.capturedPlane;
+                            setTimeout(() => {
+                                if (!nukeActive && !krakenActive) {
+                                    const angle = Math.random() * Math.PI * 2;
+                                    const radius = 80 + Math.random() * 80;
+                                    const height = 10 + Math.random() * 50;
+                                    targetRef.position.set(
+                                        Math.cos(angle) * radius, height, Math.sin(angle) * radius
+                                    );
+                                    targetRef.scale.set(1, 1, 1);
+                                    targetRef.userData.angle = angle;
+                                    targetRef.userData.radius = radius;
+                                    targetRef.userData.height = height;
+                                    targetRef.userData.alive = true;
+                                    targetRef.visible = true;
+                                }
+                            }, 1500);
+                            
+                            t.capturedPlane = null;
+                        }
+                    }
+                }
+                else if (t.phase === 3) {
+                    const retractProgress = Math.min(1, (localTime - 2.4) / 1.0);
+                    const scaleY = 1 - retractProgress;
+                    const scaleXZ = 1 - retractProgress * 0.5;
+                    t.group.scale.set(scaleXZ, Math.max(0.01, scaleXZ * (t.group.scale.y / (t.group.scale.x || 1))), scaleXZ);
+                    t.group.scale.multiplyScalar(1 - delta * 2);
+                    
+                    if (retractProgress >= 1 || t.group.scale.x < 0.05) {
+                        scene.remove(t.group);
+                        tentacles.splice(i, 1);
+                    }
+                }
+            }
+            
+            if (krakenActive && tentacles.length === 0) {
+                setTimeout(() => {
+                    krakenActive = false;
+                    krakenCooldownTimer = krakenCooldown;
+                    updateKrakenDisplay();
+                    updateMissileDisplay();
+                    if (nukeReady) {
+                        document.getElementById('nuke-btn').disabled = false;
+                    }
+                }, 300);
+            }
+        }
+
+        function updateKrakenDisplay() {
+            const btn = document.getElementById('kraken-btn');
+            if (krakenActive) {
+                btn.textContent = '🐙 КРАКЕН АТАКУЕТ!';
+                btn.disabled = true;
+            } else if (krakenCooldownTimer > 0) {
+                btn.textContent = `🐙 КРАКЕН (${Math.ceil(krakenCooldownTimer)}с)`;
+                btn.disabled = true;
+            } else if (!krakenReady) {
+                btn.textContent = `🐙 КРАКЕН (${Math.ceil(krakenCooldownTimer)}с)`;
+                btn.disabled = true;
+            } else {
+                btn.textContent = '🐙 КРАКЕН (K)';
+                btn.disabled = false;
+            }
+        }
+
+        // ==========================================
+        // === ПРОВЕРКА ТРИГГЕРА АЛАСТОРА ===
+        // ==========================================
+        function checkAlastorTrigger() {
+            if (score >= 10 && !alastorShown) {
+                alastorShown = true;
+                // Небольшая задержка, чтобы взрыв успел проиграться
+                setTimeout(() => {
+                    showAlastor();
+                }, 800);
+            }
+        }
+
+        // --- СТРЕЛЬБА ---
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+        window.addEventListener('click', (event) => {
+            if (nukeActive || krakenActive || alastorActive) return;
+
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+
+            const allMeshes = [];
+            planes.forEach(plane => {
+                if (plane.userData.alive && plane.visible) {
+                    plane.traverse(obj => {
+                        if (obj.isMesh) allMeshes.push(obj);
+                    });
+                }
+            });
+
+            const intersects = raycaster.intersectObjects(allMeshes, false);
+
+            if (intersects.length > 0) {
+                const hitObj = intersects[0].object;
+                let rootPlane = hitObj;
+                while (rootPlane.parent && !planes.includes(rootPlane)) {
+                    rootPlane = rootPlane.parent;
+                }
+
+                if (planes.includes(rootPlane) && rootPlane.userData.alive) {
+                    const explosionPos = rootPlane.position.clone();
+                    rootPlane.userData.alive = false;
+                    rootPlane.visible = false;
+
+                    createPlaneExplosion(explosionPos);
+
+                    score++;
+                    updateScoreDisplay();
+                    checkAlastorTrigger();
+
+                    if (score >= 8 && !nukeReady) {
+                        nukeReady = true;
+                        document.getElementById('nuke-btn').disabled = false;
+                    }
+
+                    setTimeout(() => {
+                        if (!nukeActive && !krakenActive) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const radius = 80 + Math.random() * 80;
+                            const height = 10 + Math.random() * 50;
+                            rootPlane.position.set(
+                                Math.cos(angle) * radius, height, Math.sin(angle) * radius
+                            );
+                            rootPlane.scale.set(1, 1, 1);
+                            rootPlane.userData.angle = angle;
+                            rootPlane.userData.radius = radius;
+                            rootPlane.userData.height = height;
+                            rootPlane.userData.alive = true;
+                            rootPlane.visible = true;
+                        }
+                    }, 1500);
+                }
+            }
+        });
+
+        function updateScoreDisplay() {
+            document.getElementById('score').textContent = score;
+        }
+
+        // --- КНОПКА ЯДЕРКИ ---
+        document.getElementById('nuke-btn').addEventListener('click', () => {
+            if (!nukeReady || nukeActive || krakenActive || alastorActive) return;
+            nukeActive = true;
+            nukeReady = false;
+            document.getElementById('nuke-btn').disabled = true;
+            document.getElementById('missile-btn').disabled = true;
+            document.getElementById('kraken-btn').disabled = true;
+
+            const overlay = document.getElementById('flash-overlay');
+            overlay.style.opacity = '1';
+            setTimeout(() => { overlay.style.opacity = '0'; }, 300);
+
+            createNukeExplosion();
+
+            const warningDiv = document.getElementById('warning');
+            warningDiv.textContent = '💥 ЯДЕРНЫЙ ВЗРЫВ 💥';
+            warningDiv.style.color = 'white';
+            warningDiv.style.textShadow = '0 0 50px red, 0 0 100px orange';
+            warningDiv.style.fontSize = '80px';
+            warningDiv.style.opacity = '1';
+            setTimeout(() => { warningDiv.style.opacity = '0'; }, 2500);
+
+            let shakeTime = 1.5;
+            const originalCamPos = camera.position.clone();
+            const shakeInterval = setInterval(() => {
+                if (shakeTime <= 0) {
+                    clearInterval(shakeInterval);
+                    camera.position.copy(originalCamPos);
+                    return;
+                }
+                camera.position.x = originalCamPos.x + (Math.random() - 0.5) * 3;
+                camera.position.y = originalCamPos.y + (Math.random() - 0.5) * 3;
+                camera.position.z = originalCamPos.z + (Math.random() - 0.5) * 3;
+                shakeTime -= 0.05;
+            }, 30);
+
+            setTimeout(() => {
+                nukeActive = false;
+                updateMissileDisplay();
+                updateKrakenDisplay();
+            }, 3000);
+        });
+
+        // --- КНОПКА РАКЕТЫ ---
+        document.getElementById('missile-btn').addEventListener('click', () => {
+            launchMissile();
+        });
+
+        // --- КНОПКА КРАКЕНА ---
+        document.getElementById('kraken-btn').addEventListener('click', () => {
+            activateKraken();
+        });
+
+        // --- КЛАВИАТУРА ---
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'r' || e.key === 'R') {
+                score = 0;
+                updateScoreDisplay();
+                nukeReady = false;
+                document.getElementById('nuke-btn').disabled = true;
+                nukeActive = false;
+                missileAmmo = MISSILE_MAX_AMMO;
+                missileReloadTimer = 0;
+                updateMissileDisplay();
+                alastorShown = false;
+                hideAlastor();
+                
+                tentacles.forEach(t => scene.remove(t.group));
+                tentacles.length = 0;
+                krakenActive = false;
+                krakenReady = true;
+                krakenCooldownTimer = 0;
+                updateKrakenDisplay();
+
+                missiles.forEach(m => scene.remove(m.mesh));
+                missiles.length = 0;
+
+                planes.forEach(plane => {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = 80 + Math.random() * 80;
+                    const height = 10 + Math.random() * 50;
+                    plane.position.set(Math.cos(angle) * radius, height, Math.sin(angle) * radius);
+                    plane.scale.set(1, 1, 1);
+                    plane.userData.angle = angle;
+                    plane.userData.radius = radius;
+                    plane.userData.height = height;
+                    plane.userData.alive = true;
+                    plane.visible = true;
+                });
+
+                explosionEffects.forEach(effect => scene.remove(effect.mesh));
+                explosionEffects.length = 0;
+
+                camera.position.set(0, 20, 60);
+                controls.target.set(0, 20, 0);
+            }
+            if (e.key === 'q' || e.key === 'Q' || e.key === 'й' || e.key === 'Й') {
+                launchMissile();
+            }
+            if (e.key === 'k' || e.key === 'K' || e.key === 'л' || e.key === 'Л') {
+                activateKraken();
+            }
+        });
+
+        // --- ДВИЖЕНИЕ САМОЛЕТОВ ---
+        function animatePlanes() {
+            if (nukeActive) return;
+
+            planes.forEach(plane => {
+                if (!plane.userData.alive) return;
+                if (krakenActive && tentacles.some(t => t.capturedPlane === plane)) return;
+
+                plane.userData.angle += plane.userData.speed * 0.01;
+                const angle = plane.userData.angle;
+                const radius = plane.userData.radius;
+                const height = plane.userData.height;
+
+                plane.position.x = Math.cos(angle) * radius;
+                plane.position.z = Math.sin(angle) * radius;
+                plane.position.y = height + Math.sin(angle * 3) * 3;
+
+                const dirX = -Math.sin(angle);
+                const dirZ = Math.cos(angle);
+                plane.rotation.y = Math.atan2(dirX, dirZ);
+                plane.rotation.z = Math.sin(angle * 2) * 0.2;
+                plane.rotation.x = Math.sin(angle) * 0.1;
+            });
+        }
+
+        // --- ОБНОВЛЕНИЕ ЭФФЕКТОВ ---
+        function updateExplosions(delta) {
+            for (let i = explosionEffects.length - 1; i >= 0; i--) {
+                const effect = explosionEffects[i];
+                effect.life -= delta;
+
+                if (effect.life <= 0) {
+                    scene.remove(effect.mesh);
+                    explosionEffects.splice(i, 1);
+                    continue;
+                }
+
+                const progress = effect.life / effect.maxLife;
+
+                if (effect.velocity) {
+                    effect.mesh.position.add(effect.velocity.clone().multiplyScalar(delta));
+                    effect.velocity.multiplyScalar(1 - delta * 0.8);
+                    
+                    if (effect.gravity) {
+                        effect.velocity.y -= 30 * delta;
+                        if (effect.rotationSpeed) {
+                            effect.mesh.rotation.x += effect.rotationSpeed.x * delta;
+                            effect.mesh.rotation.y += effect.rotationSpeed.y * delta;
+                            effect.mesh.rotation.z += effect.rotationSpeed.z * delta;
+                        }
+                    }
+                }
+
+                switch (effect.type) {
+                    case 'flash':
+                        effect.mesh.scale.multiplyScalar(1 + effect.expand * delta * 2);
+                        effect.mesh.material.opacity = progress;
+                        break;
+                    case 'fire':
+                        effect.mesh.scale.multiplyScalar(1 + effect.expand * delta * 0.8);
+                        effect.mesh.material.opacity = progress * 0.9;
+                        break;
+                    case 'subfire':
+                        effect.mesh.scale.multiplyScalar(1 + effect.expand * delta * 1.5);
+                        effect.mesh.material.opacity = progress * 0.85;
+                        break;
+                    case 'ring':
+                        effect.mesh.scale.multiplyScalar(1 + effect.expand * delta * 2.0);
+                        effect.mesh.material.opacity = progress * 0.8;
+                        break;
+                    case 'smoke':
+                        effect.mesh.scale.multiplyScalar(1 + effect.expand * delta * 0.5);
+                        effect.mesh.material.opacity = progress * 0.6;
+                        break;
+                    case 'debris':
+                        if (effect.mesh.material) {
+                            effect.mesh.material.opacity = Math.min(1, progress * 2);
+                            effect.mesh.material.transparent = true;
+                        }
+                        break;
+                    case 'light':
+                        if (effect.mesh.intensity !== undefined) {
+                            effect.mesh.intensity = progress * (effect.maxLife < 0.5 ? 8 : 20);
+                        }
+                        break;
+                }
+            }
+        }
+
+        // --- КАМЕРА ---
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.autoRotate = false;
+        controls.enableZoom = true;
+        controls.zoomSpeed = 0.5;
+        controls.rotateSpeed = 0.5;
+        controls.maxPolarAngle = Math.PI / 2.2;
+        controls.minDistance = 20;
+        controls.maxDistance = 150;
+        controls.target.set(0, 20, 0);
+
+        // --- АНИМАЦИЯ ---
+        let clock = new THREE.Clock();
+
+        function animate() {
+            const delta = Math.min(clock.getDelta(), 0.1);
+
+            animatePlanes();
+            updateMissiles(delta);
+            updateTentacles(delta);
+            updateExplosions(delta);
+            controls.update();
+
+            if (!krakenActive && !krakenReady) {
+                krakenCooldownTimer -= delta;
+                if (krakenCooldownTimer <= 0) {
+                    krakenReady = true;
+                    krakenCooldownTimer = 0;
+                }
+                updateKrakenDisplay();
+            }
+
+            stars.rotation.y += 0.0001;
+
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        updateScoreDisplay();
+        updateMissileDisplay();
+        updateKrakenDisplay();
+    </script>
+</body>
+</html>
